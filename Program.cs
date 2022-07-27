@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Reflection.Emit;
@@ -13,10 +13,15 @@ namespace deneme
     {
         public static bool isInclude = false;
 
-        MySqlConnection Mysql = new MySqlConnection("Server=localhost;Database=methods;Uid=root;Pwd='1234';");
-        MySqlCommand cmd = new MySqlCommand();
-        ClassItem[] classItemList;  
-        public void ConnectMysql()
+        public static MySqlConnection Mysql = new MySqlConnection("Server=localhost;Database=methods;Uid=root;Pwd='1234';");
+        public static MySqlCommand cmd = new MySqlCommand();
+        public static List<MethodInfo> classItemList = new List<MethodInfo>();
+        public static List<ClassMethodBody> classMethodBody = new List<ClassMethodBody>();
+
+
+        public static Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
+
+        public static void ConnectMysql()
         {
             try
             {
@@ -25,6 +30,7 @@ namespace deneme
                 {
                     Console.WriteLine("SQL Bağlantısı Başarılı Bir Şekilde Gerçekleşti");
                     cmd.Connection = Mysql;
+                    //cmd.CommandText = "DELETE FROM methods.method";
                     //cmd.CommandText = "";
                     //cmd.ExecuteNonQuery();
                 }
@@ -32,190 +38,204 @@ namespace deneme
             }
             catch (Exception err) { Console.WriteLine("Hata! " + err.Message); }
         }
-
-
-        public static void Write()
+        public static void getMethods()
         {
-            Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
-            Type[] types = SampleAssembly.GetTypes();
-            List<MemberInfo[]> methods = new List<MemberInfo[]>();
-
-            foreach (var type in types)
+            var item = SampleAssembly.GetTypes().Where(x => !(x.FullName.StartsWith("System.")) && !(x.FullName.StartsWith("Microsoft."))).ToList();
+            string ownClassName = item[item.Count - 1].FullName.Substring(0, item[item.Count - 1].FullName.IndexOf("<") - 1);
+            for (int i = item.Count - 2; i > 0; i--)
             {
-                MemberInfo[] ass = type.GetMethods() as MemberInfo[];
-                foreach (MemberInfo member in ass)
+                
+            }
+
+            //program içindeki propertyinin tiplerini alıyoruz. class içindeki değişken tipleri. content, namespace, classname, methodname
+            /* foreach (var method in item.GetMethods())
+             {
+                 if (!method.Name.Contains("GetHashCode") && !method.Name.Contains("GetType") && !method.Name.Contains("Equals") && !method.Name.Contains("GetType") && !method.Name.Contains("ToString"))
+                 {
+                     MethodInfo methodItem = new MethodInfo
+                     {
+                         ClassName = "",
+                         MethodName = method.Name,
+                         ReturnType = method.ReturnType.ToString(),
+                         NameSpace = "",
+                         Parameters = "",
+                     };
+                     classItemList.Add(methodItem);
+                 }
+             }*/
+        }
+        public static void getProperties()
+        {
+            var item = SampleAssembly.GetTypes()[SampleAssembly.GetTypes().Length - 2];
+            {
+                Console.WriteLine(item.Name);
+                Console.WriteLine(item.Namespace);
+                foreach (MethodInfo classitem in classItemList)
                 {
-                    Console.WriteLine(type.Name + "." + member.Name + " type " + type);
+                    classitem.ClassName = item.Name;
+                    classitem.NameSpace = item.Namespace;
                 }
-                methods.Add(ass);
             }
         }
-
-       
-       
-        public static void assemblyProperties()
+        public static void getParameters()
         {
-            Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
-            foreach (var item in SampleAssembly.GetTypes())
+            var type = SampleAssembly.GetTypes()[SampleAssembly.GetTypes().Length - 2];
+            string parameters = "";
+            System.Reflection.MethodInfo[] ass = type.GetMethods();
+            foreach (System.Reflection.MethodInfo member in ass)
             {
-                //program içindeki propertyinin tiplerini alıyoruz. class içindeki değişken tipleri. content, namespace, classname, methodname
-                foreach (var property in item.GetProperties())
+                foreach (var item in member.GetParameters())
                 {
-                    Console.WriteLine("property type : " +property.PropertyType + "property name : " + property.Name);
+                    parameters += item.ParameterType.ToString().Substring(item.ParameterType.ToString().IndexOf(".") + 1).ToLower();
                 }
+                foreach (MethodInfo classitem in classItemList)
+                {
+                    if (classitem.MethodName.Equals(member.Name))
+                    {
+                        classitem.Parameters = parameters;
+                    }
+                }
+                parameters = "";
             }
         }
         public static void getMethodBody()
         {
-
             var assembly = AssemblyDefinition.ReadAssembly(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
-            var toInspect = assembly.MainModule
+
+            foreach (MethodInfo citem in classItemList)
+            {
+                var toInspect = assembly.MainModule
             .GetTypes()
                 .SelectMany(t => t.Methods
                  .Where(m => m.HasBody)
                     .Select(m => new { t, m }));
+                toInspect = toInspect.Where(x => x.t.Name.EndsWith(citem.ClassName) && x.m.Name == citem.MethodName);
 
-            toInspect = toInspect.Where(x => x.t.Name.EndsWith("MethodSearcher") && x.m.Name == "GetAllMethod");
-          
                 foreach (var method in toInspect)
                 {
                     Console.WriteLine($"\tType = {method.t.Name}\n\t\tMethod = {method.m.Name}");
                     foreach (var instruction in method.m.Body.Instructions)
-                    // Console.WriteLine($"{instruction.OpCode} \"{instruction.Operand}\"");
-                    if (!isInclude)
                     {
-                        takeInstructions(instruction);
-        } else
-
-            {
-                Console.WriteLine("işlem bitti" + isInclude);
-                        break;
+                        takeInstructions(instruction, citem.MethodName);
+                    }
+                    // Console.WriteLine($"{instruction.OpCode} \"{instruction.Operand}\"");
+                }
             }
-            }
-           
         }
-           
-           
-        public static void takeInstructions(Instruction instruction)
+        public static void takeInstructions(Instruction instruction, string citem)
         {
-            string[] userParameter = {"String", "String", "int", "String","String"};
+            //string[] userParameter = {"String","String","String","String","String"};
             try
             {
-                if (instruction.Operand != null)
+                if (instruction.Operand != null && !instruction.Operand.ToString().Contains("System.Func") &&
+                    !instruction.Operand.ToString().StartsWith("V") && !instruction.Operand.ToString().Contains("Contains") && !instruction.Operand.ToString().Contains("Substring") && !instruction.Operand.ToString().Contains("IndexOf") && !instruction.Operand.ToString().Contains("Split")
+                    && !instruction.Operand.ToString().Contains("<>c") && !instruction.Operand.ToString().Equals("(") && !instruction.Operand.ToString().Equals(",") && !instruction.Operand.ToString().Equals(")") && !instruction.Operand.ToString().Equals(" ") && !instruction.Operand.ToString().Contains("get_Item") && !instruction.Operand.ToString().Contains("get_Length")
+                    && !instruction.Operand.ToString().Contains("Enumerator") && !instruction.Operand.ToString().Contains("ToList") && !instruction.Operand.ToString().Contains("Enumerable") && !instruction.Operand.ToString().Contains("IL") && !instruction.Operand.ToString().Contains("Concat"))
                 {
+                    //{ System.Void Searcher.SearcherMethod.MethodSearcher::GetAllMethod(System.String)}
+
                     string[] instructionArray;
                     instructionArray = (instruction.Operand).ToString().Split(":");
                     string method = instructionArray[2].Substring(instructionArray[1].IndexOf(":") + 1);
-                    findCurrentMethod(method, userParameter);
-                }
-            }
-            catch (Exception e){}   
-        }
-        public static void findCurrentMethod(string name, string[] userParameter)
-        {
-            string parameter;
-            string [] parameters = name.Split(".");
-            int j = 1;
-            for(int i = 0; i<parameters.Length; i++)
-            {
-                try
-                {
-                    if (i != userParameter.Length - 1) { parameter = parameters[j].Split(",")[0]; }
-                    else{parameter = parameters[j].Substring(0, parameters[j].IndexOf(")"));}
-                    /*
-                           if (userParameter[i] == parameter)
-                           {
-                              isInclude = true; 
-                           }
-                           else
-                           {
-                               isInclude = false;
-                               break;
-                           }
-                           j++;
-                       }
-                    */
-                }
-                catch (Exception e){ Console.WriteLine("catch error");}
-            }      } 
-        public static void assemblyParameter()
-        {
-            Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
-            Console.WriteLine(SampleAssembly.DefinedTypes);
-            //    var method = Type.GetType(SampleAssembly.);
-            //    type name = sınıfın ismi
-            //    Member info ile methodları al
-            // member.name = method ismi
-            Type[] types = SampleAssembly.GetTypes();
-            List<MemberInfo[]> methods = new List<MemberInfo[]>();
-            foreach (var type in types)
-            {
-                //  MemberInfo[] ass = type.GetMethods() as MemberInfo[];
-                MethodInfo[] ass = type.GetMethods();
-                foreach (MethodInfo member in ass)
-                {
-                    // return parameter ile fonksiyorunun hangi değeri döndürdüğü bulunur. Void, string, int ...
-                    // Console.WriteLine(member.ReturnParameter + "  : : " + member.Name);
-                    foreach(var item in member.GetParameters())
-                    {
-                        Console.WriteLine(item.ParameterType + " :: " + item.Name  );
-                    }
-                }
-            }
-        }
-        public static void assemblyFunction()
-        {
-            Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
-            Console.WriteLine(SampleAssembly.DefinedTypes);
-            //    var method = Type.GetType(SampleAssembly.);
-            //    type name = sınıfın ismi 
-            //    Member info ile methodları al 
-            // member.name = method ismi
-            Type[] types = SampleAssembly.GetTypes();
-           
-
-            foreach (var type in types)
-            {
-                var methods = type.GetProperties(BindingFlags.InvokeMethod);
-                foreach (var method in methods)
-                {
-                    Console.WriteLine(method.Name);
-                }
-            }
-        }
-        public static void assemblyMethodBody()
-        {
-            Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
-            Console.WriteLine(SampleAssembly.DefinedTypes);
-            
-            //    var method = Type.GetType(SampleAssembly.);
-            //    type name = sınıfın ismi 
-            //    Member info ile methodları al 
-            // member.name = method ismi
-            Type[] types = SampleAssembly.GetTypes();
-            foreach (var type in types)
-            {
-                var methods = type.GetProperties(BindingFlags.InvokeMethod);
-                foreach (var method in methods)
-                {
                     Console.WriteLine(method);
+                    string methodType = instructionArray[0].Substring(0, instructionArray[0].IndexOf(" ") + 1);
+                    string parameter = "";
+                    string[] parameters = method.Split(".");
+
+                    for (int i = 1; i < parameters.Length; i++)
+                    {
+                        if (i != parameters.Length - 1)
+                        {
+                            parameter += parameters[i].Split(",")[0].ToLower();
+                        }
+                        else
+                        {
+                            parameter += parameters[i].Substring(0, parameters[i].IndexOf(")")).ToLower();
+                        }
+                    }
+                    ClassMethodBody ci = new ClassMethodBody
+                    {
+                        MainMethodName = citem,
+                        MethodName = method.Substring(0, method.IndexOf("(")),
+                        MethodType = methodType,
+                        Parameters = parameter
+
+                    };
+                    classMethodBody.Add(ci);
                 }
             }
+            catch (Exception e)
+            {
+
+            }
+
+
+
+
+
         }
+
+        public static void findCurrentMethod()
+        {
+            Console.WriteLine("bitti");
+        }
+
         static void Main(string[] args)
         {
-           getMethodBody();
-          //  assemblyProperties();
+            Console.WriteLine("Method İsimleri");
+            getMethods();
+            Console.WriteLine("Method namespace and class");
+            getProperties();
+            Console.WriteLine("Method parameters");
+            getParameters();
+            Console.WriteLine("Method body");
+            getMethodBody();
+            findCurrentMethod();
+            //ConnectMysql();
+
+
         }
     }
-    
+
 }
-    public class ClassItem
+public class MethodInfo
+{
+    public MethodInfo() { }
+    public int Id { get; set; }
+    public int SubId { get; set; }
+    public string? NameSpace { get; set; }
+    public string? ClassName { get; set; }
+    public string? MethodName { get; set; }
+    public string? Parameters { get; set; }
+    public string? ReturnType { get; set; }
+
+    public static MySqlConnection Mysql = new MySqlConnection("Server=localhost;Database=methods;Uid=root;Pwd='1234';");
+    public static MySqlCommand cmd = new MySqlCommand();
+
+    public static void ConnectMysql()
     {
-        public ClassItem() { }
-        public string? MethodName { get; set; }
-        public string? NameSpace { get; set; }
-        public string[]? Parameters { get; set; }
-        public string? Content { get; set; }
-        public string? ClassName { get; set; }
+        try
+        {
+
+            Mysql.Open();
+            if (Mysql.State != System.Data.ConnectionState.Closed)
+            {
+                Console.WriteLine("SQL Bağlantısı Başarılı Bir Şekilde Gerçekleşti");
+                cmd.Connection = Mysql;
+                //cmd.CommandText = "DELETE FROM methods.method";
+                //cmd.CommandText = "";
+                //cmd.ExecuteNonQuery();
+            }
+            else { Console.WriteLine("Bağlantı Yapılamadı...!"); }
+        }
+        catch (Exception err) { Console.WriteLine("Hata! " + err.Message); }
     }
+}
+public class ClassMethodBody
+{
+    public string? MainMethodName { get; set; }
+    public string? MethodName { get; set; }
+    public string? MethodType { get; set; }
+    public string? Parameters { get; set; }
+
+}
