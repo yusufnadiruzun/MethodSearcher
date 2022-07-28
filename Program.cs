@@ -19,7 +19,7 @@ namespace deneme
         public static List<ClassMethodBody> classMethodBody = new List<ClassMethodBody>();
 
 
-        public static Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
+        public static Assembly SampleAssembly = Assembly.LoadFile(@"C:\Users\Ruveyda Sultan Uzun\source\repos\AssemblyDeneme\AssemblyDeneme\bin\Debug\net6.0/AssemblyDeneme.dll");
 
         public static void ConnectMysql()
         {
@@ -42,65 +42,83 @@ namespace deneme
         {
             var item = SampleAssembly.GetTypes().Where(x => !(x.FullName.StartsWith("System.")) && !(x.FullName.StartsWith("Microsoft."))).ToList();
             string ownClassName = item[item.Count - 1].FullName.Substring(0, item[item.Count - 1].FullName.IndexOf("<") - 1);
+            string className;
+            string namespaceValue;
             for (int i = item.Count - 2; i > 0; i--)
             {
-                
-            }
+                if (item[i].Namespace == null || item[i].FullName == ownClassName)
+                {
+                    className = item[i].Name;
+                    namespaceValue= item[i].Namespace;
 
-            //program içindeki propertyinin tiplerini alıyoruz. class içindeki değişken tipleri. content, namespace, classname, methodname
-            /* foreach (var method in item.GetMethods())
-             {
-                 if (!method.Name.Contains("GetHashCode") && !method.Name.Contains("GetType") && !method.Name.Contains("Equals") && !method.Name.Contains("GetType") && !method.Name.Contains("ToString"))
-                 {
-                     MethodInfo methodItem = new MethodInfo
-                     {
-                         ClassName = "",
-                         MethodName = method.Name,
-                         ReturnType = method.ReturnType.ToString(),
-                         NameSpace = "",
-                         Parameters = "",
-                     };
-                     classItemList.Add(methodItem);
-                 }
-             }*/
-        }
-        public static void getProperties()
-        {
-            var item = SampleAssembly.GetTypes()[SampleAssembly.GetTypes().Length - 2];
-            {
-                Console.WriteLine(item.Name);
-                Console.WriteLine(item.Namespace);
-                foreach (MethodInfo classitem in classItemList)
-                {
-                    classitem.ClassName = item.Name;
-                    classitem.NameSpace = item.Namespace;
-                }
-            }
-        }
-        public static void getParameters()
-        {
-            var type = SampleAssembly.GetTypes()[SampleAssembly.GetTypes().Length - 2];
-            string parameters = "";
-            System.Reflection.MethodInfo[] ass = type.GetMethods();
-            foreach (System.Reflection.MethodInfo member in ass)
-            {
-                foreach (var item in member.GetParameters())
-                {
-                    parameters += item.ParameterType.ToString().Substring(item.ParameterType.ToString().IndexOf(".") + 1).ToLower();
-                }
-                foreach (MethodInfo classitem in classItemList)
-                {
-                    if (classitem.MethodName.Equals(member.Name))
+                    foreach (var method in item[i].GetMethods())
                     {
-                        classitem.Parameters = parameters;
+                        if (!method.Name.Contains("GetHashCode") && !method.Name.Contains("GetType") && !method.Name.Contains("Equals") && !method.Name.Contains("GetType") && !method.Name.Contains("ToString"))
+                        {
+                            MethodInfo methodItem = new MethodInfo
+                            {
+                                ClassName = className,
+                                MethodName = method.Name,
+                                ReturnType = method.ReturnType.ToString(),
+                                NameSpace = namespaceValue,
+                                Parameters = "",
+                            };
+                            classItemList.Add(methodItem);
+                        }
                     }
                 }
-                parameters = "";
             }
         }
+        /*
+        public static void getProperties()
+        {
+            var item = SampleAssembly.GetTypes().Where(x => !(x.FullName.StartsWith("System.")) && !(x.FullName.StartsWith("Microsoft."))).ToList();
+            string ownClassName = item[item.Count - 1].FullName.Substring(0, item[item.Count - 1].FullName.IndexOf("<") - 1);
+            for (int i = item.Count - 2; i > 0; i--) {
+           
+                if (item[i].Namespace == null || item[i].FullName == ownClassName)
+                {
+                        foreach (MethodInfo classitem in classItemList)
+                        {
+                            classitem.ClassName = item[i].Name;
+                            classitem.NameSpace = item[i].Namespace;
+                        }
+                    }
+            }
+        }
+        */
+        public static void getParameters()
+        {
+            var item = SampleAssembly.GetTypes().Where(x => !(x.FullName.StartsWith("System.")) && !(x.FullName.StartsWith("Microsoft."))).ToList();
+            string ownClassName = item[item.Count - 1].FullName.Substring(0, item[item.Count - 1].FullName.IndexOf("<") - 1);
+            string parameters = "";
+            for (int i = item.Count - 2; i > 0; i--)
+            {
+                if (item[i].Namespace == null || item[i].FullName == ownClassName)
+                {
+                    foreach (var method in item[i].GetMethods())
+                    {
+                        foreach (var parameteres in method.GetParameters())
+                        {
+                            parameters += parameteres.ParameterType.ToString().Substring(parameteres.ParameterType.ToString().IndexOf(".") + 1).ToLower();
+                        }
+                        
+                        foreach (MethodInfo classitem in classItemList)
+                        {
+                            if (classitem.MethodName.Equals(method.Name))
+                            {
+                                classitem.Parameters = parameters;
+                            }
+                        }
+                        parameters = "";
+                    }
+                }
+            }
+        }
+
         public static void getMethodBody()
         {
-            var assembly = AssemblyDefinition.ReadAssembly(@"C:\Users\Ruveyda Sultan Uzun\source\repos\MethodSearcher\MethodSearcher\bin\Debug\net6.0/MethodSearcher.dll");
+            var assembly = AssemblyDefinition.ReadAssembly(@"C:\Users\Ruveyda Sultan Uzun\source\repos\AssemblyDeneme\AssemblyDeneme\bin\Debug\net6.0/AssemblyDeneme.dll");
 
             foreach (MethodInfo citem in classItemList)
             {
@@ -124,13 +142,13 @@ namespace deneme
         }
         public static void takeInstructions(Instruction instruction, string citem)
         {
-            //string[] userParameter = {"String","String","String","String","String"};
+          
             try
             {
                 if (instruction.Operand != null && !instruction.Operand.ToString().Contains("System.Func") &&
                     !instruction.Operand.ToString().StartsWith("V") && !instruction.Operand.ToString().Contains("Contains") && !instruction.Operand.ToString().Contains("Substring") && !instruction.Operand.ToString().Contains("IndexOf") && !instruction.Operand.ToString().Contains("Split")
                     && !instruction.Operand.ToString().Contains("<>c") && !instruction.Operand.ToString().Equals("(") && !instruction.Operand.ToString().Equals(",") && !instruction.Operand.ToString().Equals(")") && !instruction.Operand.ToString().Equals(" ") && !instruction.Operand.ToString().Contains("get_Item") && !instruction.Operand.ToString().Contains("get_Length")
-                    && !instruction.Operand.ToString().Contains("Enumerator") && !instruction.Operand.ToString().Contains("ToList") && !instruction.Operand.ToString().Contains("Enumerable") && !instruction.Operand.ToString().Contains("IL") && !instruction.Operand.ToString().Contains("Concat"))
+                    && !instruction.Operand.ToString().Contains("Enumerator") && !instruction.Operand.ToString().Contains("get_Operand") && !instruction.Operand.ToString().Contains("StartsWith") && !instruction.Operand.ToString().Contains("ToUpper") && !instruction.Operand.ToString().Contains("ToLower") && !instruction.Operand.ToString().Contains("Equals") && !instruction.Operand.ToString().Contains("Add") && !instruction.Operand.ToString().Contains("ToString") && !instruction.Operand.ToString().Contains("ToList") && !instruction.Operand.ToString().Contains("Write") && !instruction.Operand.ToString().Contains("Dispose") && !instruction.Operand.ToString().Contains("Enumerable") && !instruction.Operand.ToString().Contains("IL") && !instruction.Operand.ToString().Contains("Concat"))
                 {
                     //{ System.Void Searcher.SearcherMethod.MethodSearcher::GetAllMethod(System.String)}
 
@@ -168,11 +186,6 @@ namespace deneme
             {
 
             }
-
-
-
-
-
         }
 
         public static void findCurrentMethod()
@@ -185,15 +198,13 @@ namespace deneme
             Console.WriteLine("Method İsimleri");
             getMethods();
             Console.WriteLine("Method namespace and class");
-            getProperties();
+          //  getProperties();
             Console.WriteLine("Method parameters");
-            getParameters();
+             getParameters();
             Console.WriteLine("Method body");
-            getMethodBody();
+             getMethodBody();
             findCurrentMethod();
             //ConnectMysql();
-
-
         }
     }
 
