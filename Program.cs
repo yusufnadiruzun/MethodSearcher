@@ -14,11 +14,13 @@ namespace deneme
 
         public static MySqlConnection Mysql = new MySqlConnection("Server=localhost;Database=methods;Uid=root;Pwd='1234';");
         public static MySqlCommand cmd = new MySqlCommand();
+        public static MySqlDataReader reader;
         public static List<MethodInfo> MethodInfoList = new List<MethodInfo>();
         public static List<MethodBody> MethodBodyList = new List<MethodBody>();
         public static string path = @"C:\Users\Ruveyda Sultan Uzun\source\repos\denemeMethods\denemeMethods\bin\Debug\net6.0\denemeMethods.dll";
         public static Assembly SampleAssembly = Assembly.LoadFile(path);
-        Dictionary<string, List<MethodInfo>> searcherResultList = new Dictionary<string, List<MethodInfo>>();
+        public static int counter = 1;
+        public static Dictionary<string, List<MethodInfo>> searcherResultList = new Dictionary<string, List<MethodInfo>>();
         public static void getMethods()
         {
             int counter = 0;
@@ -46,14 +48,12 @@ namespace deneme
                             MethodInfoList.Add(methodItem);
                             counter++;
                         }
-                 
                 }
             }
         }
         public static void getParameters()
         {
             var types = SampleAssembly.GetTypes().Where(x => !(x.FullName.StartsWith("System.")) && !(x.FullName.StartsWith("Microsoft."))).ToList();
-           // string ownClassName = types[types.Count - 1].FullName.Substring(0, types[types.Count - 1].FullName.IndexOf("<") - 1);
             string parameters = "";
 
             for (int i = types.Count - 1; i >= 0; i--)
@@ -79,8 +79,7 @@ namespace deneme
                             }
                         }
                         parameters = "";
-                    }
-             
+                    }          
             }
         }
 
@@ -106,7 +105,6 @@ namespace deneme
                 }
             }
         }
-        
         public static void takeInstructions(Instruction instruction, int citem)
         {
             string[] instructionArray;
@@ -127,8 +125,7 @@ namespace deneme
                     !instruction.Operand.ToString().Contains("ToLower") && !instruction.Operand.ToString().Contains("Equals")
                     && !instruction.Operand.ToString().Contains("Add") && !instruction.Operand.ToString().Contains("ToString") && !instruction.Operand.ToString().Contains("ToList") && !instruction.Operand.ToString().Contains("Write") && !instruction.Operand.ToString().Contains("Dispose") && !instruction.Operand.ToString().Contains("Enumerable") &&
                     !instruction.Operand.ToString().Contains("IL") && !instruction.Operand.ToString().Contains("Concat")){
-                    
-                   
+
                     instructionArray = (instruction.Operand).ToString().Split(":");
                     methodInfo = instructionArray[2].Substring(instructionArray[1].IndexOf(":") + 1);
                     methodNamespace = instructionArray[0].Substring(instructionArray[0].IndexOf(" ") + 1);
@@ -164,7 +161,6 @@ namespace deneme
             }
             catch (Exception e) { }
         }
-        
         public static void ConnectMysql()
         {
             try
@@ -184,7 +180,6 @@ namespace deneme
             }
             catch (Exception err) { Console.WriteLine("Hata! " + err.Message); }
         }
-
         public static void WriteDB()
         {
             ConnectMysql();
@@ -204,33 +199,36 @@ namespace deneme
                 counter++;
             }
         }
-        
-        public static void SearchUserMethod(string Namespace, string className, string methodName, string parameters, string returnType)
+        public static void SearchUserMethod(string Namespace, string className, string methodName, string parameters)
         {
-            ConnectMysql();
+            
             List<MethodInfo> methodList = new List<MethodInfo>();
             string Query = "Select m.method_namespace,m.method_class,m.method_name,m.method_parameters From methods.methodinfo m,  methods.methodbody b where m.method_id = b.mainmethodid and b.methodname = '"+ methodName+"' and b.classname = '" + className + "' and b.namespace = '" + Namespace + "' and b.parameters = '" + parameters + "' ";
-
-            Console.WriteLine("searcher içi");
+            
+            Console.WriteLine(counter);
 
             cmd.CommandText = Query;
-            Mysql reader = cmd.ExecuteScalar();
+            reader  = cmd.ExecuteReader();
 
             while (reader.Read())
             {
                 MethodInfo method = new MethodInfo
                 {
-                    MethodName = reader["method_name"].ToString(),
                     NameSpace = reader["method_namespace"].ToString(),
                     ClassName = reader["method_class"].ToString(),
-                    Parameters = reader["method_parameters"].ToString()
+                    MethodName = reader["method_name"].ToString(),
+                    Parameters = reader["method_parameters"].ToString(),
                 };
-                Console.WriteLine("searcher içireader");
                 methodList.Add(method);
             }
+            reader.Close();
+            counter++;
+            searcherResultList.Add(methodName, methodList);
+
             foreach (MethodInfo m in methodList)
             {
-                Console.WriteLine("namespace :" + m.NameSpace + "classname :"+ m.ClassName +"name : " + m.MethodName + " parameters : "+ m.Parameters);
+                Console.WriteLine(m.MethodName);
+                SearchUserMethod(m.NameSpace, m.ClassName, m.MethodName, m.Parameters);
             }
         }
         public static void getAllMethods()
@@ -241,24 +239,24 @@ namespace deneme
             getMethodBody();
             WriteDB();
         }
-       
-        static void Main(string[] args)
-            {
-              // method Info : 
-              string nameSpace = "class3Namespace";
-              string className = "Class3";
-              string methodName = "class3Function2";
-              string returnType = "System.Void";
-              string parameters = "string,ınt32";
-
-              getAllMethods();
-              SearchUserMethod(nameSpace, className, methodName, parameters,returnType);
            
-            }
+
+       static void Main(string[] args)
+       {
+                // method Info : 
+        string nameSpace = "class3Namespace";
+        string className = "Class3";
+        string methodName = "class3Function2";
+        string returnType = "System.Void";
+        string parameters = "string,ınt32";
+
+        getAllMethods();
+        ConnectMysql();
+        SearchUserMethod(nameSpace, className, methodName, parameters);
+        }
         }
     }
-
-public class MethodInfo
+    public class MethodInfo
     {
         public MethodInfo() { }
         public int Id { get; set; }
@@ -269,7 +267,7 @@ public class MethodInfo
         public string? Parameters { get; set; }
         public string? ReturnType { get; set; }
     }
-public class MethodBody
+    public class MethodBody
     {
         public string? NameSpace { get; set; }
         public string? Classname { get; set; }
